@@ -25,6 +25,7 @@ import (
 type (
 	contextKeyMappedClaims struct{}
 	contextKeyAuthHeader   struct{}
+	contextKeyActor        struct{}
 )
 
 type (
@@ -51,6 +52,8 @@ var (
 
 	MappedClaims contextKeyMappedClaims
 	AuthHeader   contextKeyAuthHeader
+	// ActorKey is the context key for the server-computed actor identity (Real ID).
+	ActorKey contextKeyActor
 )
 
 // TLSInfoFromContext extracts TLS information from the context's peer value.
@@ -157,8 +160,13 @@ func (a *Interceptor) Intercept(
 			APIName:   info.FullMethod,
 			Request:   req,
 		}
-		if err := a.Authorize(ctx, claims, ct); err != nil {
+		actor, err := a.Authorize(ctx, claims, ct)
+		if err != nil {
 			return nil, err
+		}
+		// Store actor in context for Real ID provenance tracking
+		if actor != "" {
+			ctx = context.WithValue(ctx, ActorKey, actor)
 		}
 
 		// Authorize target namespaces in cross-namespace commands
@@ -224,9 +232,10 @@ func (a *Interceptor) EnhanceContext(ctx context.Context, authInfo *AuthInfo, cl
 
 // Authorize uses the policy's authorizer to authorize a request based on provided claims and call target.
 // Logs and emits metrics when unauthorized.
-func (a *Interceptor) Authorize(ctx context.Context, claims *Claims, ct *CallTarget) error {
+// Returns the actor identity (for Real ID provenance tracking) and any authorization error.
+func (a *Interceptor) Authorize(ctx context.Context, claims *Claims, ct *CallTarget) (string, error) {
 	if a.authorizer == nil {
-		return nil
+		return "", nil
 	}
 
 	mh := a.getMetricsHandler(ct.Namespace)
@@ -238,19 +247,19 @@ func (a *Interceptor) Authorize(ctx context.Context, claims *Claims, ct *CallTar
 		metrics.ServiceErrAuthorizeFailedCounter.With(mh).Record(1)
 		a.logger.Error("Authorization error", tag.Error(err))
 		if a.exposeAuthorizerErrors() {
-			return err
+			return "", err
 		}
-		return errUnauthorized // return a generic error to the caller without disclosing details
+		return "", errUnauthorized // return a generic error to the caller without disclosing details
 	}
 	if result.Decision != DecisionAllow {
 		metrics.ServiceErrUnauthorizedCounter.With(mh).Record(1)
 		// if a reason is included in the result, include it in the error message
 		if result.Reason != "" {
-			return serviceerror.NewPermissionDenied(RequestUnauthorized, result.Reason)
+			return "", serviceerror.NewPermissionDenied(RequestUnauthorized, result.Reason)
 		}
-		return errUnauthorized // return a generic error to the caller without disclosing details
+		return "", errUnauthorized // return a generic error to the caller without disclosing details
 	}
-	return nil
+	return result.Actor, nil
 }
 
 // getMetricsHandler returns a metrics handler with a namespace tag
@@ -327,7 +336,7 @@ func (a *Interceptor) authorizeTargetNamespaces(
 		}
 
 		// Authorize access to target namespace for this specific API
-		if err := a.Authorize(ctx, claims, &CallTarget{
+		if _, err := a.Authorize(ctx, claims, &CallTarget{
 			APIName:   api.WorkflowServicePrefix + apiName,
 			Namespace: targetNamespace,
 			Request:   req,

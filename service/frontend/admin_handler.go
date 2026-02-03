@@ -37,6 +37,7 @@ import (
 	"go.temporal.io/server/client/frontend"
 	"go.temporal.io/server/client/history"
 	"go.temporal.io/server/common"
+	"go.temporal.io/server/common/authorization"
 	"go.temporal.io/server/common/channel"
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/cluster"
@@ -1657,6 +1658,8 @@ func (adh *AdminHandler) StartAdminBatchOperation(
 		SearchAttributes:         searchAttributes,
 	}
 
+	// Extract actor from context for Real ID provenance tracking
+	actor, _ := ctx.Value(authorization.ActorKey).(string)
 	_, err = adh.historyClient.StartWorkflowExecution(
 		ctx,
 		common.CreateHistoryStartWorkflowRequest(
@@ -1665,6 +1668,7 @@ func (adh *AdminHandler) StartAdminBatchOperation(
 			nil,
 			nil,
 			time.Now().UTC(),
+			actor,
 		),
 	)
 	if err != nil {

@@ -532,6 +532,7 @@ func CreateHistoryStartWorkflowRequest(
 	parentExecutionInfo *workflowspb.ParentExecutionInfo,
 	rootExecutionInfo *workflowspb.RootExecutionInfo,
 	now time.Time,
+	actor string,
 ) *historyservice.StartWorkflowExecutionRequest {
 	// We include the original startRequest in the forwarded request to History, but
 	// we don't want to send workflow payloads twice. We deep copy to a new struct,
@@ -550,6 +551,7 @@ func CreateHistoryStartWorkflowRequest(
 		LastCompletionResult:     startRequest.LastCompletionResult,
 		RootExecutionInfo:        rootExecutionInfo,
 		VersioningOverride:       startRequest.GetVersioningOverride(),
+		Actor:                    actor,
 	}
 	startRequest.ContinuedFailure = nil
 	startRequest.LastCompletionResult = nil

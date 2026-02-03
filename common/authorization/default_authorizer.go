@@ -2,6 +2,7 @@ package authorization
 
 import (
 	"context"
+	"fmt"
 
 	"go.temporal.io/server/common/api"
 )
@@ -56,7 +57,14 @@ func (a *defaultAuthorizer) Authorize(_ context.Context, claims *Claims, target 
 	}
 
 	if hasRole >= getRequiredRole(metadata.Access) {
-		return resultAllow, nil
+		result := Result{Decision: DecisionAllow}
+		// Compute Actor from Claims.Subject for Real ID provenance tracking.
+		// Format: "jwt/<subject>" (e.g., "jwt/alice@company.com")
+		fmt.Println("[Real ID] default_authorizer.go claims.Subject", claims.Subject)
+		if claims.Subject != "" {
+			result.Actor = "jwt/" + claims.Subject
+		}
+		return result, nil
 	}
 	return resultDeny, nil
 }

@@ -13,6 +13,7 @@ func ConvertToStartRequest(
 	namespaceID namespace.ID,
 	request *workflowservice.SignalWithStartWorkflowExecutionRequest,
 	now time.Time,
+	actor string,
 ) *historyservice.StartWorkflowExecutionRequest {
 	req := &workflowservice.StartWorkflowExecutionRequest{
 		Namespace:                request.GetNamespace(),
@@ -39,5 +40,5 @@ func ConvertToStartRequest(
 		Priority:                 request.GetPriority(),
 	}
 
-	return common.CreateHistoryStartWorkflowRequest(namespaceID.String(), req, nil, nil, now)
+	return common.CreateHistoryStartWorkflowRequest(namespaceID.String(), req, nil, nil, now, actor)
 }

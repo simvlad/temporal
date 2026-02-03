@@ -1640,6 +1640,8 @@ func (t *transferQueueActiveTaskExecutor) startWorkflow(
 		Priority:              priority,
 	}
 
+	// Note: For child workflows started internally, the actor is empty.
+	// The Real ID provenance will be inherited from the parent's initiating event.
 	request := common.CreateHistoryStartWorkflowRequest(
 		targetNamespaceID.String(),
 		startRequest,
@@ -1656,6 +1658,7 @@ func (t *transferQueueActiveTaskExecutor) startWorkflow(
 		},
 		rootExecutionInfo,
 		t.shardContext.GetTimeSource().Now(),
+		"", // actor - child workflows inherit provenance from parent
 	)
 
 	request.SourceVersionStamp = sourceVersionStamp

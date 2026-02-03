@@ -99,6 +99,9 @@ message StartWorkflowExecutionRequest {
     // After the first workflow task, the effective behavior of the workflow is determined by worker-sent values in
     // subsequent workflow tasks.
     temporal.api.deployment.v1.InheritedAutoUpgradeInfo inherited_auto_upgrade_info = 16;
+    // Server-computed actor identity for Real ID provenance tracking.
+    // Format: "type/name" (e.g., "jwt/alice@company.com")
+    string actor = 17;
 }
 
 message StartWorkflowExecutionResponse {
@@ -498,6 +501,9 @@ message SignalWithStartWorkflowExecutionRequest {
     // (-- api-linter: core::0140::prepositions=disabled
     //     aip.dev/not-precedent: "with" is needed here. --)
     temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest signal_with_start_request = 2;
+    // Server-computed actor identity for Real ID provenance tracking.
+    // Format: "type/name" (e.g., "jwt/alice@company.com")
+    string actor = 3;
 }
 
 message SignalWithStartWorkflowExecutionResponse {

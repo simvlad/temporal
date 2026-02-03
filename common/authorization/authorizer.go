@@ -40,6 +40,9 @@ type (
 		Decision Decision
 		// Reason may contain a message explaining the value of the Decision field.
 		Reason string
+		// Actor is the server-computed identity of the caller (e.g., "jwt/alice@company.com").
+		// This is used for provenance tracking in history events (Real ID).
+		Actor string
 	}
 
 	// Decision is enum type for auth decision

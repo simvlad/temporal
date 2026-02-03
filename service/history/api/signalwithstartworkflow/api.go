@@ -64,6 +64,7 @@ func Invoke(
 		namespaceID,
 		signalWithStartRequest.SignalWithStartRequest,
 		shard.GetTimeSource().Now(),
+		signalWithStartRequest.GetActor(),
 	)
 	request := startRequest.StartRequest
 

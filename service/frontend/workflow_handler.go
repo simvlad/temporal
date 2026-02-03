@@ -41,6 +41,7 @@ import (
 	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/archiver"
 	"go.temporal.io/server/common/archiver/provider"
+	"go.temporal.io/server/common/authorization"
 	"go.temporal.io/server/common/backoff"
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/cluster"
@@ -401,6 +402,9 @@ func (wh *WorkflowHandler) StartWorkflowExecution(
 	}
 	wh.logger.Debug("Start workflow execution request namespaceID.", tag.WorkflowNamespaceID(namespaceID.String()))
 
+	// Extract actor from context for Real ID provenance tracking
+	actor, _ := ctx.Value(authorization.ActorKey).(string)
+
 	resp, err := wh.historyClient.StartWorkflowExecution(
 		ctx,
 		common.CreateHistoryStartWorkflowRequest(
@@ -409,6 +413,7 @@ func (wh *WorkflowHandler) StartWorkflowExecution(
 			nil,
 			nil,
 			time.Now().UTC(),
+			actor,
 		),
 	)
 	if err != nil {
@@ -576,7 +581,7 @@ func (wh *WorkflowHandler) ExecuteMultiOperation(
 		return nil, errMultiOpNotStartAndUpdate
 	}
 
-	historyReq, err := wh.convertToHistoryMultiOperationRequest(namespaceID, request)
+	historyReq, err := wh.convertToHistoryMultiOperationRequest(ctx, namespaceID, request)
 	if err != nil {
 		return nil, err
 	}
@@ -600,6 +605,7 @@ func (wh *WorkflowHandler) ExecuteMultiOperation(
 }
 
 func (wh *WorkflowHandler) convertToHistoryMultiOperationRequest(
+	ctx context.Context,
 	namespaceID namespace.ID,
 	request *workflowservice.ExecuteMultiOperationRequest,
 ) (*historyservice.ExecuteMultiOperationRequest, error) {
@@ -610,7 +616,7 @@ func (wh *WorkflowHandler) convertToHistoryMultiOperationRequest(
 	errs := make([]error, len(request.Operations))
 
 	for i, op := range request.Operations {
-		convertedOp, opWorkflowID, err := wh.convertToHistoryMultiOperationItem(namespaceID, namespace.Name(request.Namespace), op)
+		convertedOp, opWorkflowID, err := wh.convertToHistoryMultiOperationItem(ctx, namespaceID, namespace.Name(request.Namespace), op)
 		if err != nil {
 			hasError = true
 		} else {
@@ -641,6 +647,7 @@ func (wh *WorkflowHandler) convertToHistoryMultiOperationRequest(
 }
 
 func (wh *WorkflowHandler) convertToHistoryMultiOperationItem(
+	ctx context.Context,
 	namespaceID namespace.ID,
 	namespaceName namespace.Name,
 	op *workflowservice.ExecuteMultiOperationRequest_Operation,
@@ -667,6 +674,8 @@ func (wh *WorkflowHandler) convertToHistoryMultiOperationItem(
 		}
 
 		workflowId = startReq.WorkflowId
+		// Extract actor from context for Real ID provenance tracking
+		actor, _ := ctx.Value(authorization.ActorKey).(string)
 		opReq = &historyservice.ExecuteMultiOperationRequest_Operation{
 			Operation: &historyservice.ExecuteMultiOperationRequest_Operation_StartWorkflow{
 				StartWorkflow: common.CreateHistoryStartWorkflowRequest(
@@ -675,6 +684,7 @@ func (wh *WorkflowHandler) convertToHistoryMultiOperationItem(
 					nil,
 					nil,
 					time.Now().UTC(),
+					actor,
 				),
 			},
 		}
@@ -2206,9 +2216,12 @@ func (wh *WorkflowHandler) SignalWithStartWorkflowExecution(ctx context.Context,
 		return nil, err
 	}
 
+	// Extract actor from context for Real ID provenance tracking
+	actor, _ := ctx.Value(authorization.ActorKey).(string)
 	resp, err := wh.historyClient.SignalWithStartWorkflowExecution(ctx, &historyservice.SignalWithStartWorkflowExecutionRequest{
 		NamespaceId:            namespaceID.String(),
 		SignalWithStartRequest: request,
+		Actor:                  actor,
 	})
 
 	if err != nil {
@@ -3286,6 +3299,8 @@ func (wh *WorkflowHandler) createScheduleWorkflow(
 		SearchAttributes:         sa,
 		Priority:                 &commonpb.Priority{}, // ie default priority
 	}
+	// Extract actor from context for Real ID provenance tracking
+	actor, _ := ctx.Value(authorization.ActorKey).(string)
 	_, err = wh.historyClient.StartWorkflowExecution(
 		ctx,
 		common.CreateHistoryStartWorkflowRequest(
@@ -3294,6 +3309,7 @@ func (wh *WorkflowHandler) createScheduleWorkflow(
 			nil,
 			nil,
 			time.Now().UTC(),
+			actor,
 		),
 	)
 
@@ -5166,6 +5182,8 @@ func (wh *WorkflowHandler) StartBatchOperation(
 		Priority:                 &commonpb.Priority{}, // ie default priority
 	}
 
+	// Extract actor from context for Real ID provenance tracking
+	actor, _ := ctx.Value(authorization.ActorKey).(string)
 	_, err = wh.historyClient.StartWorkflowExecution(
 		ctx,
 		common.CreateHistoryStartWorkflowRequest(
@@ -5174,6 +5192,7 @@ func (wh *WorkflowHandler) StartBatchOperation(
 			nil,
 			nil,
 			time.Now().UTC(),
+			actor,
 		),
 	)
 	if err != nil {

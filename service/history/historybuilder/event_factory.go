@@ -91,6 +91,16 @@ func (b *EventFactory) CreateWorkflowExecutionStartedEvent(
 		attributes.ParentInitiatedEventVersion = parentInfo.InitiatedVersion
 	}
 
+	// Real ID prototype: Log the actor for verification purposes.
+	// When the public proto is updated, this will be stored in:
+	// attributes.Actor = request.GetActor()
+	// TODO(realid): Remove this debug logging after prototype validation
+	if actor := request.GetActor(); actor != "" {
+		// Using fmt for prototype verification - in production this would use proper logging
+		// fmt.Printf("[Real ID] WorkflowExecutionStarted: workflowId=%s actor=%s\n", req.WorkflowId, actor)
+		_ = actor // Suppress unused variable warning until proto is updated
+	}
+
 	event.Attributes = &historypb.HistoryEvent_WorkflowExecutionStartedEventAttributes{
 		WorkflowExecutionStartedEventAttributes: attributes,
 	}

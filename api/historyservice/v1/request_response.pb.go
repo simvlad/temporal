@@ -194,8 +194,11 @@ type StartWorkflowExecutionRequest struct {
 	// After the first workflow task, the effective behavior of the workflow is determined by worker-sent values in
 	// subsequent workflow tasks.
 	InheritedAutoUpgradeInfo *v16.InheritedAutoUpgradeInfo `protobuf:"bytes,16,opt,name=inherited_auto_upgrade_info,json=inheritedAutoUpgradeInfo,proto3" json:"inherited_auto_upgrade_info,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	// Server-computed actor identity for Real ID provenance tracking.
+	// Format: "type/name" (e.g., "jwt/alice@company.com")
+	Actor         string `protobuf:"bytes,17,opt,name=actor,proto3" json:"actor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StartWorkflowExecutionRequest) Reset() {
@@ -338,6 +341,13 @@ func (x *StartWorkflowExecutionRequest) GetInheritedAutoUpgradeInfo() *v16.Inher
 		return x.InheritedAutoUpgradeInfo
 	}
 	return nil
+}
+
+func (x *StartWorkflowExecutionRequest) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
 }
 
 type StartWorkflowExecutionResponse struct {
@@ -2927,8 +2937,11 @@ type SignalWithStartWorkflowExecutionRequest struct {
 	//
 	//	aip.dev/not-precedent: "with" is needed here. --)
 	SignalWithStartRequest *v1.SignalWithStartWorkflowExecutionRequest `protobuf:"bytes,2,opt,name=signal_with_start_request,json=signalWithStartRequest,proto3" json:"signal_with_start_request,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Server-computed actor identity for Real ID provenance tracking.
+	// Format: "type/name" (e.g., "jwt/alice@company.com")
+	Actor         string `protobuf:"bytes,3,opt,name=actor,proto3" json:"actor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SignalWithStartWorkflowExecutionRequest) Reset() {
@@ -2973,6 +2986,13 @@ func (x *SignalWithStartWorkflowExecutionRequest) GetSignalWithStartRequest() *v
 		return x.SignalWithStartRequest
 	}
 	return nil
+}
+
+func (x *SignalWithStartWorkflowExecutionRequest) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
 }
 
 type SignalWithStartWorkflowExecutionResponse struct {
@@ -10179,7 +10199,7 @@ const file_temporal_server_api_historyservice_v1_request_response_proto_rawDesc 
 	"task_token\x18\x06 \x01(\tR\ttaskToken\x12\x1d\n" +
 	"\n" +
 	"task_infos\x18\a \x01(\tR\ttaskInfos\x12.\n" +
-	"\x13chasm_component_ref\x18\b \x01(\tR\x11chasmComponentRef\"\x83\v\n" +
+	"\x13chasm_component_ref\x18\b \x01(\tR\x11chasmComponentRef\"\x99\v\n" +
 	"\x1dStartWorkflowExecutionRequest\x12!\n" +
 	"\fnamespace_id\x18\x01 \x01(\tR\vnamespaceId\x12c\n" +
 	"\rstart_request\x18\x02 \x01(\v2>.temporal.api.workflowservice.v1.StartWorkflowExecutionRequestR\fstartRequest\x12h\n" +
@@ -10197,7 +10217,8 @@ const file_temporal_server_api_historyservice_v1_request_response_proto_rawDesc 
 	"\x13versioning_override\x18\r \x01(\v2,.temporal.api.workflow.v1.VersioningOverrideR\x12versioningOverride\x12.\n" +
 	"\x13child_workflow_only\x18\x0e \x01(\bR\x11childWorkflowOnly\x12m\n" +
 	"\x18inherited_pinned_version\x18\x0f \x01(\v23.temporal.api.deployment.v1.WorkerDeploymentVersionR\x16inheritedPinnedVersion\x12s\n" +
-	"\x1binherited_auto_upgrade_info\x18\x10 \x01(\v24.temporal.api.deployment.v1.InheritedAutoUpgradeInfoR\x18inheritedAutoUpgradeInfo:\x1f\x92\xc4\x03\x1b*\x19start_request.workflow_id\"\xfc\x02\n" +
+	"\x1binherited_auto_upgrade_info\x18\x10 \x01(\v24.temporal.api.deployment.v1.InheritedAutoUpgradeInfoR\x18inheritedAutoUpgradeInfo\x12\x14\n" +
+	"\x05actor\x18\x11 \x01(\tR\x05actor:\x1f\x92\xc4\x03\x1b*\x19start_request.workflow_id\"\xfc\x02\n" +
 	"\x1eStartWorkflowExecutionResponse\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12?\n" +
 	"\x05clock\x18\x02 \x01(\v2).temporal.server.api.clock.v1.VectorClockR\x05clock\x12n\n" +
@@ -10433,10 +10454,11 @@ const file_temporal_server_api_historyservice_v1_request_response_proto_rawDesc 
 	"\x0esignal_request\x18\x02 \x01(\v2?.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequestR\rsignalRequest\x12i\n" +
 	"\x1bexternal_workflow_execution\x18\x03 \x01(\v2).temporal.api.common.v1.WorkflowExecutionR\x19externalWorkflowExecution\x12.\n" +
 	"\x13child_workflow_only\x18\x04 \x01(\bR\x11childWorkflowOnly:3\x92\xc4\x03/*-signal_request.workflow_execution.workflow_id\"!\n" +
-	"\x1fSignalWorkflowExecutionResponse\"\xff\x01\n" +
+	"\x1fSignalWorkflowExecutionResponse\"\x95\x02\n" +
 	"'SignalWithStartWorkflowExecutionRequest\x12!\n" +
 	"\fnamespace_id\x18\x01 \x01(\tR\vnamespaceId\x12\x83\x01\n" +
-	"\x19signal_with_start_request\x18\x02 \x01(\v2H.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequestR\x16signalWithStartRequest:+\x92\xc4\x03'*%signal_with_start_request.workflow_id\"[\n" +
+	"\x19signal_with_start_request\x18\x02 \x01(\v2H.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequestR\x16signalWithStartRequest\x12\x14\n" +
+	"\x05actor\x18\x03 \x01(\tR\x05actor:+\x92\xc4\x03'*%signal_with_start_request.workflow_id\"[\n" +
 	"(SignalWithStartWorkflowExecutionResponse\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x18\n" +
 	"\astarted\x18\x02 \x01(\bR\astarted\"\xe3\x01\n" +
