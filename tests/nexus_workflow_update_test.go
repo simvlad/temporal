@@ -754,6 +754,89 @@ func (s *NexusWorkflowUpdateTestSuite) TestWorkflowUpdateAsyncAttachedNexusOpera
 	s.NoError(env.SdkClient().SignalWorkflow(ctx, cfg.childWfID, targetRun.GetRunID(), "stop", nil))
 }
 
+// TestWorkflowUpdateAttachWhileAdmittedNexusOperation verifies that a second operation for the
+// same update attaches its callback while the update is admitted but not yet sent to a worker,
+// and both operations get the update result.
+func (s *NexusWorkflowUpdateTestSuite) TestWorkflowUpdateAttachWhileAdmittedNexusOperation(standalone bool) {
+	// The update long poll returns at the admitted stage once this interval expires, so that the
+	// handler can return while no worker polls the target workflow.
+	opts := append(enableUpdateCallbacksOpts(),
+		testcore.WithDynamicConfig(dynamicconfig.HistoryLongPollExpirationInterval, time.Second))
+	env := newNexusTestEnv(s.T(), true, opts...)
+	ctx := s.Context()
+	cfg := newUpdateNexusTestConfig(env)
+
+	h := nexustest.Handler{
+		OnStartOperation: func(
+			ctx context.Context,
+			service, operation string,
+			input *nexus.LazyValue,
+			options nexus.StartOperationOptions,
+		) (nexus.HandlerStartOperationResult[any], error) {
+			links := commonnexus.ConvertNexusLinksToProtoLinks(options.Links, log.NewNoopLogger())
+			_, err := env.FrontendClient().UpdateWorkflowExecution(ctx, &workflowservice.UpdateWorkflowExecutionRequest{
+				Namespace:         env.Namespace().String(),
+				WorkflowExecution: &commonpb.WorkflowExecution{WorkflowId: cfg.childWfID},
+				WaitPolicy: &updatepb.WaitPolicy{
+					LifecycleStage: enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED,
+				},
+				Request: &updatepb.Request{
+					Meta: &updatepb.Meta{UpdateId: cfg.updateID},
+					Input: &updatepb.Input{
+						Name: "update",
+						Args: &commonpb.Payloads{Payloads: []*commonpb.Payload{testcore.MustToPayload(s.T(), "test")}},
+					},
+					RequestId: uuid.NewString(),
+					CompletionCallbacks: []*commonpb.Callback{{
+						Variant: &commonpb.Callback_Nexus_{Nexus: &commonpb.Callback_Nexus{
+							Url:    options.CallbackURL,
+							Header: options.CallbackHeader,
+						}},
+						Links: links,
+					}},
+					Links: links,
+				},
+			})
+			if err != nil {
+				return nil, nexus.NewHandlerErrorf(nexus.HandlerErrorTypeInternal, "update call failed: %v", err)
+			}
+			return &nexus.HandlerStartOperationResultAsync{OperationToken: "test"}, nil
+		},
+	}
+	endpointName := env.createRandomExternalNexusServer(ctx, s.T(), h)
+
+	// No worker polls the target task queue yet, so the update stays admitted.
+	targetTaskQueue := env.Tv().WithTaskQueueNumber(1).TaskQueue().Name
+	targetWF := newUpdateChildWorkflow(true)
+	targetRun, err := env.SdkClient().ExecuteWorkflow(ctx, client.StartWorkflowOptions{
+		ID:        cfg.childWfID,
+		TaskQueue: targetTaskQueue,
+	}, targetWF, "initial input")
+	s.NoError(err)
+
+	caller := s.newUpdateNexusCaller(env, standalone, endpointName, cfg.taskQueue)
+	op1 := s.startOperation(caller, cfg.childWfID)
+	s.awaitOperationStarted(caller, op1)
+	op2 := s.startOperation(caller, cfg.childWfID)
+	s.awaitOperationStarted(caller, op2)
+
+	s.startWorker(env, targetTaskQueue, targetWF)
+	s.awaitUpdateAccepted(env, cfg.childWfID, targetRun.GetRunID())
+	s.NoError(env.SdkClient().SignalWorkflow(ctx, cfg.childWfID, targetRun.GetRunID(), "complete-update", nil))
+
+	// Each operation has its own update callback, and both are delivered.
+	s.assertUpdateCallbackDelivered(caller, op1, cfg.childWfID, targetRun.GetRunID(), cfg.updateID)
+	s.assertUpdateCallbackDelivered(caller, op2, cfg.childWfID, targetRun.GetRunID(), cfg.updateID)
+
+	var result1, result2 string
+	s.NoError(s.getOperationResult(caller, op1, &result1))
+	s.NoError(s.getOperationResult(caller, op2, &result2))
+	s.Equal("updated: test", result1)
+	s.Equal("updated: test", result2)
+
+	s.NoError(env.SdkClient().SignalWorkflow(ctx, cfg.childWfID, targetRun.GetRunID(), "stop", nil))
+}
+
 // TestWorkflowUpdateNoCallbackAttachedOnAlreadyCompletedUpdate verifies that when a second caller
 // sends an update request with the same update ID after the update has already completed,
 // the second request returns the result synchronously without attaching a new callback.
